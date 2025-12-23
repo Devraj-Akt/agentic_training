@@ -6,8 +6,7 @@ from azure.ai.agents import AgentsClient
 from azure.ai.agents.models import (
     ConnectedAgentTool,
     MessageRole,
-    ListSortOrder
-)
+    ListSortOrder)
 from azure.identity import DefaultAzureCredential
 
 # Clear console
