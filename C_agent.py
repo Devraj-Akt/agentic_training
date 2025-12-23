@@ -1,77 +1,161 @@
 import os
 from dotenv import load_dotenv
 
-# Add references
-from azure.ai.agents import AgentsClient 
-from azure.ai.agents.models import ConnectedAgentTool, MessageRole, ListSortOrder, ToolSet, FunctionTool 
+# Azure AI Agent SDK
+from azure.ai.agents import AgentsClient
+from azure.ai.agents.models import (
+    ConnectedAgentTool,
+    MessageRole,
+    ListSortOrder)
 from azure.identity import DefaultAzureCredential
 
+# Clear console
+os.system('cls' if os.name == 'nt' else 'clear')
 
-# Clear the console
-os.system('cls' if os.name=='nt' else 'clear')          
-
-# Load environment variables from .env file
+# Load env vars
 load_dotenv()
 project_endpoint = os.getenv("PROJECT_ENDPOINT")
 model_deployment = os.getenv("MODEL_DEPLOYMENT_NAME")
 
-
-# Connect to the agents client
-agents_client = AgentsClient( endpoint=project_endpoint, credential=DefaultAzureCredential( exclude_environment_credential=True, exclude_managed_identity_credential=True ), )
+# Create Agents Client
+agents_client = AgentsClient(
+    endpoint=project_endpoint,
+    credential=DefaultAzureCredential(
+        exclude_environment_credential=True,
+        exclude_managed_identity_credential=True
+    ),
+)
 
 with agents_client:
 
-    # Create an agent to prioritize support tickets
-    priority_agent_name = "priority_agent_devaraj" 
-    priority_agent_instructions = """ Assess how urgent a ticket is based on its description. Respond with one of the following levels: - High: User-facing or blocking issues - Medium: Time-sensitive but not breaking anything - Low: Cosmetic or non-urgent tasks Only output the urgency level and a very brief explanation. """ 
-    priority_agent = agents_client.create_agent( model=model_deployment, name=priority_agent_name, instructions=priority_agent_instructions )
+    # ----------------------------------------
+    # 1. Document Classification Agent
+    # ----------------------------------------
+    doc_agent_name = "document_classifier_agent_team_8"
+    doc_agent_instructions = """
+    Identify the type of legal document (e.g., NDA, Service Agreement,
+    Employment Contract) and jurisdiction if mentioned.
+    Respond briefly.
+    """
+    doc_agent = agents_client.create_agent(
+        model=model_deployment,
+        name=doc_agent_name,
+        instructions=doc_agent_instructions
+    )
 
+    # ----------------------------------------
+    # 2. Clause Extraction Agent
+    # ----------------------------------------
+    clause_agent_name = "clause_extraction_agent_team_8"
+    clause_agent_instructions = """
+    Extract key legal clauses from the document:
+    - Termination
+    - Liability
+    - Indemnity
+    - Governing Law
+    - Confidentiality
+    Return clause name and summary.
+    """
+    clause_agent = agents_client.create_agent(
+        model=model_deployment,
+        name=clause_agent_name,
+        instructions=clause_agent_instructions
+    )
 
-    # Create an agent to assign tickets to the appropriate team
-    team_agent_name = "team_agent_devaraj" 
-    team_agent_instructions = """ Decide which team should own each ticket. Choose from the following teams: - Frontend - Backend - Infrastructure - Marketing Base your answer on the content of the ticket. Respond with the team name and a very brief explanation. """ 
-    team_agent = agents_client.create_agent( model=model_deployment, name=team_agent_name, instructions=team_agent_instructions )
+    # ----------------------------------------
+    # 3. Compliance & Risk Agent
+    # ----------------------------------------
+    compliance_agent_name = "compliance_risk_agent_team_8"
+    compliance_agent_instructions = """
+    Review extracted clauses and identify:
+    - Missing clauses
+    - High-risk or one-sided terms
+    - Ambiguous legal language
+    Respond with risk level (High/Medium/Low) and explanation.
+    """
+    compliance_agent = agents_client.create_agent(
+        model=model_deployment,
+        name=compliance_agent_name,
+        instructions=compliance_agent_instructions
+    )
 
+    # ----------------------------------------
+    # Connected Agent Tools
+    # ----------------------------------------
+    doc_agent_tool = ConnectedAgentTool(
+        id=doc_agent.id,
+        name=doc_agent_name,
+        description="Identifies document type and jurisdiction"
+    )
 
-    # Create an agent to estimate effort for a support ticket
-    effort_agent_name = "effort_agent_devaraj" 
-    effort_agent_instructions = """ Estimate how much work each ticket will require. Use the following scale: - Small: Can be completed in a day - Medium: 2-3 days of work - Large: Multi-day or cross-team effort Base your estimate on the complexity implied by the ticket. Respond with the effort level and a brief justification. """ 
-    effort_agent = agents_client.create_agent( model=model_deployment, name=effort_agent_name, instructions=effort_agent_instructions )
+    clause_agent_tool = ConnectedAgentTool(
+        id=clause_agent.id,
+        name=clause_agent_name,
+        description="Extracts key legal clauses"
+    )
 
+    compliance_agent_tool = ConnectedAgentTool(
+        id=compliance_agent.id,
+        name=compliance_agent_name,
+        description="Flags compliance and legal risks"
+    )
 
+    # ----------------------------------------
+    # 4. Orchestrator Agent (Like Triage Agent)
+    # ----------------------------------------
+    review_agent_name = "legal_review_orchestrator_team_8"
+    review_agent_instructions = """
+    Perform a legal document review.
+    Use connected agents to:
+    1. Identify document type
+    2. Extract clauses
+    3. Assess compliance risks
+    Provide a concise final summary.
+    """
+    review_agent = agents_client.create_agent(
+        model=model_deployment,
+        name=review_agent_name,
+        instructions=review_agent_instructions,
+        tools=[
+            doc_agent_tool.definitions[0],
+            clause_agent_tool.definitions[0],
+            compliance_agent_tool.definitions[0]
+        ]
+    )
 
-    # Create connected agent tools for the support agents
-    priority_agent_tool = ConnectedAgentTool( id=priority_agent.id, name=priority_agent_name, description="Assess the priority of a ticket" ) 
-    team_agent_tool = ConnectedAgentTool( id=team_agent.id, name=team_agent_name, description="Determines which team should take the ticket" ) 
-    effort_agent_tool = ConnectedAgentTool( id=effort_agent.id, name=effort_agent_name, description="Determines the effort required to complete the ticket" )
-    
+    # ----------------------------------------
+    # Run the Legal Review
+    # ----------------------------------------
+    print("Creating legal review thread...")
+    thread = agents_client.threads.create()
 
-    # Create an agent to triage support ticket processing by using connected agents
-    triage_agent_name = "triage-agent" 
-    triage_agent_instructions = """ Triage the given ticket. Use the connected tools to determine the ticket's priority, which team it should be assigned to, and how much effort it may take. """ 
-    triage_agent = agents_client.create_agent( model=model_deployment, name=triage_agent_name, instructions=triage_agent_instructions, tools=[priority_agent_tool.definitions[0], team_agent_tool.definitions[0], effort_agent_tool.definitions[0] ] )
-    
-    
+    prompt = input("\nPaste the legal document text:\n")
 
-    # Use the agents to triage a support issue
-    print("Creating agent thread.") 
-    thread = agents_client.threads.create() 
-    # Create the ticket prompt 
-    prompt = input("\nWhat's the support problem you need to resolve?: ") 
-    # Send a prompt to the agent 
-    message = agents_client.messages.create( thread_id=thread.id, role=MessageRole.USER, content=prompt, ) 
-    # Run the thread usng the primary agent 
-    print("\nProcessing agent thread. Please wait.") 
-    run = agents_client.runs.create_and_process(thread_id=thread.id, agent_id=triage_agent.id) 
-    if run.status == "failed": 
+    agents_client.messages.create(
+        thread_id=thread.id,
+        role=MessageRole.USER,
+        content=prompt
+    )
+
+    print("\nProcessing legal review. Please wait...\n")
+
+    run = agents_client.runs.create_and_process(
+        thread_id=thread.id,
+        agent_id=review_agent.id
+    )
+
+    if run.status == "failed":
         print(f"Run failed: {run.last_error}")
-    # Fetch and display messages 
-    messages = agents_client.messages.list(thread_id=thread.id, order=ListSortOrder.ASCENDING) 
-    for message in messages: 
-        if message.text_messages: 
-            last_msg = message.text_messages[-1] 
+
+    # ----------------------------------------
+    # Display Results
+    # ----------------------------------------
+    messages = agents_client.messages.list(
+        thread_id=thread.id,
+        order=ListSortOrder.ASCENDING
+    )
+
+    for message in messages:
+        if message.text_messages:
+            last_msg = message.text_messages[-1]
             print(f"{message.role}:\n{last_msg.text.value}\n")
-
-
-
-
