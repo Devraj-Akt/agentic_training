@@ -31,11 +31,53 @@ with agents_client:
     # ----------------------------------------
     # 1. Document Classification Agent
     # ----------------------------------------
-    doc_agent_name = "document_classifier_agent_team_8"
+    doc_agent_name = "document_classifier_agent_team_eight"
     doc_agent_instructions = """
-    Identify the type of legal document (e.g., NDA, Service Agreement,
-    Employment Contract) and jurisdiction if mentioned.
-    Respond briefly.
+Given the user prompt, identify & classify the intent of the user query to any one of the below types:
+investments
+capitalization
+private_equity
+interest
+vesting
+employee_benefits
+esop
+ownership_of_shares
+foreign_investors
+loans
+stock_option
+investment_company
+seed
+board
+financing
+grant_of_option
+payment_terms
+taxes
+payment
+compensation
+base-salary
+investment-company-act
+dividends
+shares
+grant
+conversion_of_shares
+WHEREAS
+NOW
+Notices
+Governing
+Counterparts
+Severability
+Miscellaneous
+Definitions
+Entire
+Termination
+Indemnification
+Headings
+Representations
+Assignment
+Insurance
+Confidentiality
+ 
+Once the type is identified, pass this information to the next agent which is "clause_extraction_agent_team_eight"
     """
     doc_agent = agents_client.create_agent(
         model=model_deployment,
@@ -46,15 +88,11 @@ with agents_client:
     # ----------------------------------------
     # 2. Clause Extraction Agent
     # ----------------------------------------
-    clause_agent_name = "clause_extraction_agent_team_8"
+    clause_agent_name = "clause_extraction_agent_team_eight"
     clause_agent_instructions = """
-    Extract key legal clauses from the document:
-    - Termination
-    - Liability
-    - Indemnity
-    - Governing Law
-    - Confidentiality
-    Return clause name and summary.
+Obtain the clause type from "document_classifier_agent_team_eight". Based on the clause type and the user's prompt, extract similar clauses from the added knowledge index
+ 
+    Return clauses to the next agent i.e. "compliance_risk_agent_team_8"
     """
     clause_agent = agents_client.create_agent(
         model=model_deployment,
@@ -65,13 +103,13 @@ with agents_client:
     # ----------------------------------------
     # 3. Compliance & Risk Agent
     # ----------------------------------------
-    compliance_agent_name = "compliance_risk_agent_team_8"
+    compliance_agent_name = "compliance_risk_agent_team_eight"
     compliance_agent_instructions = """
-    Review extracted clauses and identify:
-    - Missing clauses
-    - High-risk or one-sided terms
-    - Ambiguous legal language
-    Respond with risk level (High/Medium/Low) and explanation.
+From the clauses that was received from "clause_extraction_agent_team_eight", agent.
+Now, with the user prompt, type identified and clauses extracted, provided detailed information in below order :
+1. Summary or response for user's query
+2. Risk category
+3. Any other important information needed for the user based on the query
     """
     compliance_agent = agents_client.create_agent(
         model=model_deployment,
@@ -103,14 +141,15 @@ with agents_client:
     # ----------------------------------------
     # 4. Orchestrator Agent (Like Triage Agent)
     # ----------------------------------------
-    review_agent_name = "legal_review_orchestrator_team_8"
+    review_agent_name = "legal_review_orchestrator_team_eight"
     review_agent_instructions = """
     Perform a legal document review.
     Use connected agents to:
-    1. Identify document type
+    1. Identify user prompt type
     2. Extract clauses
-    3. Assess compliance risks
+    3. Assess compliance risks and provide the information
     Provide a concise final summary.
+Act as a bridge between the agents to transfer the details within agents
     """
     review_agent = agents_client.create_agent(
         model=model_deployment,
