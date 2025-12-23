@@ -1,2 +1,4 @@
 python-dotenv
 azure-identity
+pip install azure-ai-projects
+
