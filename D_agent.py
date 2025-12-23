@@ -31,7 +31,7 @@ with agents_client:
     # ----------------------------------------
     # 1. Document Classification Agent
     # ----------------------------------------
-    doc_agent_name = "document_classifier_agent"
+    doc_agent_name = "document_classifier_agent_team_8"
     doc_agent_instructions = """
     Identify the type of legal document (e.g., NDA, Service Agreement,
     Employment Contract) and jurisdiction if mentioned.
@@ -46,7 +46,7 @@ with agents_client:
     # ----------------------------------------
     # 2. Clause Extraction Agent
     # ----------------------------------------
-    clause_agent_name = "clause_extraction_agent"
+    clause_agent_name = "clause_extraction_agent_team_8"
     clause_agent_instructions = """
     Extract key legal clauses from the document:
     - Termination
@@ -65,7 +65,7 @@ with agents_client:
     # ----------------------------------------
     # 3. Compliance & Risk Agent
     # ----------------------------------------
-    compliance_agent_name = "compliance_risk_agent"
+    compliance_agent_name = "compliance_risk_agent_team_8"
     compliance_agent_instructions = """
     Review extracted clauses and identify:
     - Missing clauses
@@ -103,7 +103,7 @@ with agents_client:
     # ----------------------------------------
     # 4. Orchestrator Agent (Like Triage Agent)
     # ----------------------------------------
-    review_agent_name = "legal_review_orchestrator"
+    review_agent_name = "legal_review_orchestrator_team_8"
     review_agent_instructions = """
     Perform a legal document review.
     Use connected agents to:
